@@ -162,8 +162,8 @@ async def rec_newbie_career_endpoint(request: Request):
     chat_response = rec_newbie_career(conversation, session_id)
     history = conversation_memory.get(session_id, [])
 
-    # If enough interactions (≥6), build portfolio and call recommend_career
-    if len(history) >= 6:
+    # If enough interactions (≥1), build portfolio and call recommend_career
+    if len(history) >= 1:
         portfolio_json = build_portfolio_from_conversation(history)
         recommendations = recommend_career(portfolio_json)
         return {
