@@ -14,7 +14,7 @@ def rec_newbie_career(conversation_history=""):
         "You are an empathetic AI career counselor helping a high-school student (class 11). "
         "They have no defined career path or clear strengths yet. "
         "Your goal is to ask short, friendly questions to understand their personality, interests, learning style, and values. "
-        "After gathering enough details, summarize their potential strengths and fill a portfolio in JSON format with the following structure:\n\n"
+        "You have to gather details for the followin JSON datastructure:"
         "{\n"
         "  'portfolio_json': {\n"
         "    'name': '',\n"

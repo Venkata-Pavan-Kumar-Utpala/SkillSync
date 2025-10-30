@@ -16,7 +16,7 @@ def is_profile_complete(portfolio_json: dict) -> bool:
 
     # Example rule set
     return (
-        len(skills) >= 3
+        len(skills) >= 1
         and (len(experiences) >= 0 or bool(education))
         and (len(projects) >= 0 or bool(education))
     )
