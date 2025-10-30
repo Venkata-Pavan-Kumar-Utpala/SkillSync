@@ -1,133 +1,96 @@
-import { configDotenv } from 'dotenv';
-import express, { json } from 'express';
+import express from 'express';
 import cors from 'cors';
-import axios from 'axios'; // We need axios to call the Python API
-import { authMiddleware, getUserProfile } from "./middleware/authMiddleware.js";
+import axios from 'axios';
+// We remove authMiddleware and getUserProfile for testing
+// import { authMiddleware, getUserProfile } from './middleware/authMiddleware.js';
+
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8001';
 
-// Mock User Data & Auth
-// In a real app, this would come from a JWT token and MongoDB
-app.use(authMiddleware); // Mock auth middleware
-//
-
-// URL of your Python ML/AI server
-// Make sure it's running on a different port (e.g., 8001)
-const ML_API_URL = process.env.ML_API_URL || 'http://localhost:8001';
-
-app.use(cors()); // Allow requests from your React app
-app.use(json());
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 /**
- * @route POST /api/chat
- * This is the main router for all 4 buttons.
- * It gets the user profile and then calls the appropriate
- * endpoint on the Python/FastAPI server.
+ * Main Chat Endpoint
+ * This single endpoint routes all button clicks to the correct Python service.
  */
+// We remove the 'authMiddleware' from the route to make testing easier
 app.post('/api/chat', async (req, res) => {
-  const { type, goal, query } = req.body;
-  const userId = req.user.id; // Get user ID from our mock auth
+  // Get the 'type' and 'profile' directly from the Postman request body
+  const { type, profile } = req.body;
+  
+  // --- THIS IS THE FIX ---
+  // Instead of merging with a mock user, we will ONLY use the profile
+  // sent from Postman. This ensures your changes are respected.
+  const fullUserProfile = profile;
+  // -----------------------
 
+  // Convert the profile into the JSON string format the Python server expects
+  const portfolioJsonString = JSON.stringify(fullUserProfile);
+
+  let response;
   try {
-    const userProfile = await getUserProfile(userId);
-    if (!userProfile) {
-      return res.status(404).json({ message: 'User profile not found.' });
-    }
-
-    // Convert profile to the JSON string format the ML API expects
-    const portfolioJsonString = JSON.stringify(userProfile.profile);
-
-    let result;
-
     switch (type) {
-      case 'CAREER_RECOMMENDATION': {
-        console.log('MERN: Calling Python /recommend-career endpoint...');
-        const response = await axios.post(`${ML_API_URL}/recommend-career`, {
+      case 'CAREER_RECOMMENDATION':
+        console.log('Handling Career Recommendation with profile:', portfolioJsonString);
+        response = await axios.post(`${PYTHON_API_URL}/recommend-career`, {
           portfolio_json: portfolioJsonString
         });
-        result = response.data;
         break;
-      }
 
-      case 'SKILL_PATHWAY': {
-        console.log('MERN: Calling Python /get-skill-pathway endpoint...');
-        // TODO: Ask your ML teammate to add a '/get-skill-pathway' endpoint
-        // It will likely need both the portfolio_json and a 'goal'
-        // const response = await axios.post(`${ML_API_URL}/get-skill-pathway`, {
-        //   portfolio_json: portfolioJsonString,
-        //   goal: goal 
-        // });
-        // result = response.data;
-        
-        // Mock Data for Hackathon
-        result = {
-          pathway: [
-            "Learn Python fundamentals.",
-            "Master data analysis libraries: Pandas and NumPy.",
-            "Build 3 projects using Scikit-learn.",
-            "Learn data visualization with Tableau."
-          ]
-        };
-        // End Mock Data
+      case 'SKILL_PATHWAY':
+        console.log('Handling Skill Pathway...');
+        response = { data: { recommendations: `**Skill Pathway Logic (Not Implemented in Python Yet)**\n\nBased on your goal, here is a mock path:\n1. Learn Python\n2. Master Pandas\n3. Build a project` } };
         break;
-      }
 
-      case 'COURSE_RECOMMENDATION': {
-        console.log('MERN: Calling Python /get-courses endpoint...');
-        // TODO: Ask your ML teammate to add a '/get-courses' endpoint
-        // It will likely need the portfolio_json and a 'query' (e.g., "Python")
-        // const response = await axios.post(`${ML_API_URL}/get-courses`, {
-        //   portfolio_json: portfolioJsonString,
-        //   skill: query // e.g., query = "Python"
-        // });
-        // result = response.data;
-        
-        // Mock Data for Hackathon
-        result = {
-          courses: [
-            { name: "Complete Python Bootcamp", platform: "Udemy" },
-            { name: "Google Data Analytics Certificate", platform: "Coursera" }
-          ]
-        };
-        // End Mock Data
+      case 'COURSE_RECOMMENDATION':
+        console.log('Handling Course Recommendation with profile:', JSON.stringify(fullUserProfile));
+        response = await axios.post(`${PYTHON_API_URL}/get-course-trends`, {
+          portfolio_json: fullUserProfile // This endpoint takes the full JSON object
+        });
         break;
-      }
 
-      case 'PORTFOLIO_BUILDER': {
-        console.log('MERN: Calling Python /get-portfolio-project endpoint...');
-        // TODO: Ask your ML teammate to add a '/get-portfolio-project' endpoint
-        // It will likely need the portfolio_json and a 'goal' (e.g., "Data Analyst")
-        // const response = await axios.post(`${ML_API_URL}/get-portfolio-project`, {
-        //   portfolio_json: portfolioJsonString,
-        //   goal_role: goal 
-        // });
-        // result = response.data;
-        
-        // Mock Data for Hackathon
-        result = {
-          project_idea: {
-            title: "Global COVID-19 Data Analysis",
-            description: "Analyze and visualize the spread and impact of COVID-19 using a public dataset."
-          }
-        };
-        // End Mock Data
+      case 'PORTFOLIO_BUILDER':
+        console.log('Handling Portfolio Builder...');
+        response = { data: { recommendations: `**Portfolio Builder Logic (Not Implemented in Python Yet)**\n\nHere is a mock project idea:\n\nBuild a personal finance tracker using React and Plaid API.` } };
         break;
-      }
 
       default:
         return res.status(400).json({ message: 'Invalid request type' });
     }
 
-    return res.json(result);
+    res.json(response.data);
 
   } catch (error) {
-    console.error('Error in /api/chat:', error.message);
+    console.error(`Error in /api/chat:`, error.message);
     res.status(500).json({ message: 'Error processing your request.' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`MERN server (Express) is running on http://localhost:${PORT}`);
-  console.log(`Make sure the Python AI server is running on ${ML_API_URL}`);
+/**
+ * News/Trends Endpoint
+ */
+// We remove 'authMiddleware' here too for simple testing
+app.post('/api/news', async (req, res) => {
+  const { skill } = req.body;
+  try {
+    console.log(`Fetching news for skill: ${skill}`);
+    const response = await axios.post(`${PYTHON_API_URL}/get-job-trends`, {
+      skill: skill
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error(`Error in /api/news:`, error.message);
+    res.status(500).json({ message: 'Error fetching job trends.' });
+  }
 });
+
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`MERN Backend Server is running on http://localhost:${PORT}`);
+});
+
