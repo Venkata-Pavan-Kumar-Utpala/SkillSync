@@ -1,10 +1,15 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from agents.rec_newbie_career import rec_newbie_career
 from agents.json_parser import parse_user_profile
 from agents.assistant_json import assistant_json_formatter
 from agents.summary_gen import generate_summary
 from agents.career_recommender import recommend_career
 from agents.topic_generator import generate_topics_from_portfolio
+from agents.rec_newbie_career import rec_newbie_career, conversation_memory
+from agents.portfolio_builder import build_portfolio_from_conversation
+
+
 import requests
 import os
 import json
@@ -146,3 +151,26 @@ async def get_course_trends(request: Request):
 
     except Exception as e:
         return {"error": str(e)}
+    
+@app.post("/rec-newbie-career")
+async def rec_newbie_career_endpoint(request: Request):
+    data = await request.json()
+    conversation = data.get("conversation", "")
+    session_id = data.get("session_id", "default")
+
+    # Get response from the conversational agent
+    chat_response = rec_newbie_career(conversation, session_id)
+    history = conversation_memory.get(session_id, [])
+
+    # If enough interactions (≥6), build portfolio and call recommend_career
+    if len(history) >= 6:
+        portfolio_json = build_portfolio_from_conversation(history)
+        recommendations = recommend_career(portfolio_json)
+        return {
+            "conversation": chat_response["response"],
+            "portfolio_json": portfolio_json,
+            "recommendations": recommendations,
+        }
+
+    return chat_response
+
